@@ -1,109 +1,67 @@
-Yapay Zeka Destekli Görüntü Sınıflandırıcı
+# CNN ile Hayvan Sınıflandırma
 
-Bu proje, derin öğrenme (Deep Learning) teknikleri kullanılarak eğitilmiş bir Convolutional Neural Network (CNN) modeli ile görüntü sınıflandırması yapmaktadır.
-Eğitilen model, Streamlit tabanlı kullanıcı dostu bir web arayüzü üzerinden görsel alarak tahmin sonucunu kullanıcıya sunar.
+Sıfırdan yazılmış (hazır model kullanılmayan) bir CNN ile 10 hayvan sınıfını ayırt eden PyTorch projesi. Eğitilen modeli denemek için Streamlit arayüzü de var.
 
- Proje Amacı
+Veri seti: [Animals-10 (Kaggle)](https://www.kaggle.com/datasets/alessiocorrado99/animals10)
 
-Görsel verileri ön işleme adımlarından geçirerek, eğitilmiş bir CNN modeli yardımıyla doğru şekilde sınıflandırmak ve bu süreci kullanıcı dostu, etkileşimli bir arayüz ile sunmak.
+## Sınıflar
 
-- Öne Çıkan Özellikler
+Klasör adları veri setinden geldiği için İtalyanca:
 
-Gelişmiş CNN Mimarisi
-Özel olarak tasarlanmış ve eğitilmiş Custom CNN modeli kullanılmıştır.
+`cane` köpek · `cavallo` at · `elefante` fil · `farfalla` kelebek · `gallina` tavuk · `gatto` kedi · `mucca` inek · `pecora` koyun · `ragno` örümcek · `scoiattolo` sincap
 
-Görüntü Ön İşleme
-Yeniden boyutlandırma, normalize etme ve veri uyumluluğu kontrolleri.
+## Model
 
-Streamlit Web Arayüzü
-Gerçek zamanlı tahmin, sade tasarım ve kolay kullanım.
+- Girdi: 224×224 RGB, değerler [0, 1] aralığında (ek normalizasyon yok)
+- 4 blok `Conv-BN-ReLU-Conv-BN-ReLU-MaxPool` (32 → 64 → 128 → 128 kanal), arada `Dropout2d(0.1)`
+- Global average pooling, ardından `Linear(128→256) → ReLU → Dropout(0.35) → Linear(256→10)`
+- Kayıp: CrossEntropy (label smoothing 0.1)
+- Optimizer: AdamW (lr 3e-4, weight decay 1e-4), her 4 epoch'ta lr yarıya iner
+- 12 epoch, batch 32. En düşük validation loss'u veren ağırlıklar saklanır.
+- Eğitimde augmentasyon: RandomResizedCrop, yatay çevirme, ColorJitter
 
-Detaylı Çıktılar
-En yüksek olasılıklı sınıf ve tahmin sonucunun kullanıcıya açık şekilde gösterimi.
+Eğitilmiş ağırlıklar `models/best_custom_cnn.pth` dosyasında (yaklaşık 2.5 MB).
 
-Modüler Kod Yapısı
-Eğitim, model ve arayüz bileşenleri ayrı dosyalar halinde düzenlenmiştir.
+## Kurulum
 
- Desteklenen Hayvan Sınıfları
+`requirements.txt` yok, paketleri elle kurmak gerekiyor:
 
-Model aşağıdaki 10 hayvan sınıfını tanıyabilmektedir:
+```bash
+pip install torch torchvision streamlit pillow scikit-learn tqdm
+```
 
-🐶 Köpek (cane)
+## Sadece arayüzü çalıştırmak
 
-🐱 Kedi (gatto)
+```bash
+streamlit run app.py
+```
 
-🐮 İnek (mucca)
+`http://localhost:8501` adresinde açılır. Bir jpg/png yükleyip "Tahmin Et"e basınca tahmin edilen sınıf, güven oranı ve en olası 3 sınıf gösterilir.
 
-🐴 At (cavallo)
+## Modeli yeniden eğitmek
 
-🐑 Koyun (pecora)
+1. Animals-10'u indir, sınıf klasörlerini `data/raw/animals10/` altına koy.
+2. Veriyi böl ve 224×224'e küçült (%70 train, %15 val, %15 test):
+   ```bash
+   python scripts/prepare_data.py
+   ```
+   Sonuç `data/processed/{train,val,test}/` altına yazılır.
+3. Eğit:
+   ```bash
+   python train.py
+   ```
+   Test klasörü varsa eğitim sonunda en iyi modelle test doğruluğu da yazdırılır.
 
-🐔 Tavuk (gallina)
+`data/` klasörü boyutu yüzünden repoya eklenmedi.
 
-🐘 Fil (elefante)
+## Dosyalar
 
-🦋 Kelebek (farfalla)
+```
+app.py                  Streamlit arayüzü
+train.py                model tanımı + eğitim döngüsü
+scripts/prepare_data.py veri bölme ve yeniden boyutlandırma
+scripts/test_only.py    önceki ResNet18 denemesinden kalan test betiği
+models/                 eğitilmiş ağırlıklar
+```
 
-🕷️ Örümcek (ragno)
-
-🐿️ Sincap (scoiattolo)
-
-⚙️ Teknik Detaylar
-
-Girdi Boyutu: 224 × 224 × 3
-
-Normalizasyon: [0, 1] aralığında
-
-Kayıp Fonksiyonu: Cross Entropy Loss
-
-Optimizasyon: Adam Optimizer
-
-Değerlendirme Metrikleri: Accuracy, Validation Loss
-
-📂 Proje Yapısı
-
-app.py → Streamlit tabanlı web arayüzü
-
-train.py → CNN modelinin eğitim kodu
-
-scripts/ → Yardımcı fonksiyonlar
-
-data/ → train / val / test veri setleri (GitHub’a eklenmedi)
-
-models/ → Eğitilmiş model dosyalarından yalnızca en son kullanılan best custom model yüklendi
-
-🚀 Kurulum ve Çalıştırma
-1️⃣ Gerekli Kütüphaneleri Yükleyin
-
-pip install -r requirements.txt
-
-2️⃣ (Opsiyonel) Modeli Eğitin
-
-python train.py
-
-3️⃣ Uygulamayı Başlatın
-
-python -m streamlit run app.py
-
-Uygulama varsayılan olarak şu adreste açılır:
-http://localhost:8501
-
-🧪 Örnek Kullanım Akışı
-
-Web arayüzünü açın
-
-Bir görüntü yükleyin (jpg / png)
-
-Tahmin butonuna basın
-
-Modelin sınıflandırma sonucunu ekranda görüntüleyin
-
-📌 Notlar
-
-Veri seti ve büyük boyutlu dosyalar GitHub’a eklenmemiştir.
-
-Projede, örnek çalıştırma amacıyla eğitilmiş best_custom_cnn.pth modeli paylaşılmıştır.
-
-Model, farklı veri setleriyle yeniden eğitilebilir şekilde tasarlanmıştır.
-
-Model [Animals-10 Dataset] (https://www.kaggle.com/datasets/alessiocorrado99/animals10) kullanılarak eğitilmiştir.
+`scripts/test_only.py` repoda olmayan `models/best_resnet18.pth` dosyasını arıyor, mevcut özel CNN ile çalışmaz.
